@@ -1,6 +1,8 @@
 '''Modified from Angela Phillips: https://github.com/amphilli/CH65-comblib/blob/main/Kd_Inference/scripts/kd_inference.py
 
 Fits Kds to tite-seq counts data
+
+Inputs: counts_table, flowt_table
  '''
 # importing things
 import pandas as pd
@@ -14,7 +16,8 @@ mpl.rcParams['figure.dpi'] = 300
 
 ####USER DEFINED INPUTS####
 counts_table = ''
-
+flow_table = ''
+bounds_dict = {}
 
 ####
 
@@ -27,27 +30,6 @@ df["geno"] = df.geno.apply(lambda x: f"{int(x):0{conf['num_mutations']}d}")
 fluor = pd.read_csv(snakemake.input.fluorescence, sep="\t")
 fluor = fluor[fluor.replicate == replicate]
 
-def mean_expression(sample_info, fluor, df):
-    sample_info = sample_info[sample_info.concentration == 'F'].copy()
-    fluor = fluor[fluor.concentration == 'F'].copy()
-    nb_bins = sample_info.bin.nunique()
-    nb_genos = len(df)
-    probas = np.zeros((nb_bins, nb_genos))
-    counts = np.zeros((nb_bins, nb_genos))
-    cells = np.zeros(nb_bins)
-    meanfluor, stdfluor = np.zeros((2, nb_bins))
-
-    for bb, gate in enumerate(range(1, nb_bins+1)):
-        counts[bb, :] = df[f"{construct}_{replicate}_F_{gate}"]
-        cells[bb] = sample_info[sample_info.bin == gate]["cell count"].iloc[0]
-        meanfluor[bb] = fluor[fluor.bin == gate]["mean_log10_FITCs"].iloc[0]
-        stdfluor[bb] = fluor[fluor.bin == gate]["std_log10_FITCs"].iloc[0]
-    probas = counts / (counts.sum(axis=1)[:, None]) * cells[:, None]
-    probas = probas / probas.sum(axis=0)[None, :]
-    mean_log10_fluor = (probas * meanfluor[:, None]).sum(axis=0)
-    std_log10_fluor = np.sqrt((stdfluor[:, None]**2 * probas**2
-                               + meanfluor[:, None]**2 * probas**2 / counts).sum(axis=0))
-    return mean_log10_fluor, std_log10_fluor
 
 # plotting with error
 # define function
@@ -60,15 +42,16 @@ def extractKd(concentrations, bins_mean, bins_std):
     """
     popt, pcov = scipy.optimize.curve_fit(sigmoid, concentrations,
                                           bins_mean,
-                                          p0=[(-9), 10**(4), 10**(2)],
+                                          p0=[(-9), 10**(4), 10**(2)], #initial guess for parameters
                                           sigma=bins_std, absolute_sigma=True,
-                                          bounds=[(conf['bounds_log10Kd_min'],
-                                                   conf['bounds_A_min'],
-                                                   conf['bounds_B_min']),
-                                                  (conf['bounds_log10Kd_max'],
-                                                   conf['bounds_A_max'],
-                                                   conf['bounds_B_max'])],
-                                          maxfev=400000)
+                                          bounds=[(bounds_dict['bounds_log10Kd_min'],
+                                                   bounds_dict['bounds_A_min'],
+                                                   bounds_dict['bounds_B_min']),
+                                                  (bounds_dict['bounds_log10Kd_max'],
+                                                   bounds_dict['bounds_A_max'],
+                                                   bounds_dict['bounds_B_max'])],
+                                            nan_policy='omit' #do calculations without NaNs
+                                          ) #got rid if maxfev=400000 for now, number of iterations for fitting
     return(-1*popt[0], popt[1], popt[2], 1 - np.sum((sigmoid(concentrations, *popt) - bins_mean)**2)/np.sum((bins_mean - bins_mean.mean())**2), np.sqrt(np.diag(pcov))[0])
 
 
@@ -102,10 +85,7 @@ def compute_Kds(sample_info, fluor, df):
     std_log10_fluor = np.sqrt((stdfluor[:, None, :]**2 * probas**2
                                + meanfluor[:, None, :]**2 * probas**2 / (1e-22 + counts)).sum(axis=0))
 
-    # replace the "0" concentration by an arbitrary large value (here 20) and invert the values
-    concentrations = -concentrations
-    concentrations[concentrations ==
-                   0] = concentrations[concentrations == 0] - 20
+
     # fit of Kd
     Kds, A, B, err, cov = np.zeros((5, nb_genos))
     for s in range(nb_genos):
@@ -151,16 +131,6 @@ df["A"] = As
 df["B"] = Bs
 df["r2"] = errs
 df["sigma"] = covs
-
-# also save the mean fluorescence values
-for cc in range(0, mean_log10_PE.shape[1]):
-    df[f"mean_log10PE{cc}"] = mean_log10_PE[:, cc-1]
-    df[f"std_log10PE{cc}"] = std_log10_PE[:, cc-1]
-
-if 'F' in sample_info.concentration.unique():
-    m10s, s10s = mean_expression(sample_info, fluor, df)
-    df["Mean fluorescence expression"] = m10s
-    df["Std fluorescence expression"] = s10s
 
 # save the Kds values
 df[["geno", "log10Kd", "A", "B", "r2", "sigma"] +

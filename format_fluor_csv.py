@@ -21,7 +21,7 @@ bin_names = [1, 2, 3, 4]
 
 outdir = '/Users/stephaniecrilly/test'
 ####
-pd.options.mode.chained_assignment = 'raise'
+
 ####FUNCTIONS####
 
 fluor_df = pd.read_csv(fluor_csv)
