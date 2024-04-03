@@ -90,7 +90,7 @@ if ngs_input == 'Azenta fastq':
         log = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         out, err = log.communicate()
         with open(logfile, 'wb') as f:
-                    f.write(out)
+            f.write(out)
 
 #parse fastq files for matching sequences and assemble counts table
 
