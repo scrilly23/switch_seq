@@ -60,6 +60,7 @@ if ngs_input == 'Azenta unique seqs':
 #####
 #start from fastq samples already separated into diff samples (Azenta fastq)
 #adapted from Hugh Haddox protease analysis scripts
+#alternatively look into flashpy: https://github.com/ponnhide/flashpy
 if ngs_input == 'Azenta fastq':
      #pair forward and reverse reads
     paired_FASTQ_files_dir = os.path.join(outdir, 'paired_FASTQ_files')
