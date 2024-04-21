@@ -3,7 +3,7 @@
 standardize input file from sort export for future runs
 
 returns df:
-columns: sample_id, construct (library), concentratio_float, events, mean_log10_APC, std_log10_APC, bin, concentration
+columns: sample_id, construct (library), concentration_float, events, mean_log10_APC, std_log10_APC, bin, concentration
 '''
 
 #import
@@ -38,7 +38,7 @@ def get_vals_per_bin(df, colname, bin_num):
     df[[f'{colname} Mean APC-A', f'{colname} SD APC-A']] = df[[f'{colname} Mean APC-A', f'{colname} SD APC-A']].astype(float).apply(np.log10)
 
     #rename columns
-    df = df.rename(columns={f'concentration':'concentration_float', f'{colname} Events':'cell counts', f'{colname} Mean APC-A':'mean_log10_APC', f'{colname} SD APC-A':'std_log10_APC'})
+    df = df.rename(columns={f'concentration':'concentration_float', f'{colname} Events':'cell count', f'{colname} Mean APC-A':'mean_log10_APC', f'{colname} SD APC-A':'std_log10_APC'})
     
     df['bin'] = bin_num
     df['sample_id'] = df['sample_id'] + '-' + str(bin_num)
