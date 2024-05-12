@@ -13,17 +13,13 @@ Returns a counts table with a row for each design and column for each sample
 '''
 
 ####USER DEFINED INPUTS####
-ngs_input = 'Azenta unique seqs' #'Azenta unique seqs', 'Azenta fastq', 'fastq'
+ngs_input = 'Azenta unique seqs' #'Azenta unique seqs', 'fastq'
 designed_sequences_file = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240304_ngs_data/20240304_all_seqs_r1_order.csv'
 summary_df = ''
-outdir = '/Users/stephaniecrilly/test'
+outdir = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240507_r1-hs_tite-seq_rep2_ngs'
 
-unique_seqs_dir = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240304_ngs_data/30-992575946/UniqueSeq'
+unique_seqs_dir = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240507_r1-hs_tite-seq_rep2_ngs/30-1023075317/UniqueSeq'
 
-fastq_dir = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240304_ngs_data/30-992575946/00_fastq'
-pear_path = '/Users/stephaniecrilly/pear-src-0.9.11/src/pear' #update with path to python package
-five_prime_flanking_seq = 'CATATG'
-three_prime_flanking_seq = 'CTCGAG'
 ####
 
 os.makedirs(outdir, exist_ok=True)
@@ -35,7 +31,6 @@ if ngs_input == 'Azenta unique seqs':
     #add amino acids from display construct to design sequences
     designed_seqs_df = pd.read_csv(designed_sequences_file)
     designed_seqs_df = designed_seqs_df.rename(columns={'Name':'design'})
-    designed_seqs_df['sequence'] = 'SASHM' + designed_seqs_df['aa_sequence'].astype(str) + 'LEGGG'
     
     unique_seqs_files = os.listdir(unique_seqs_dir)
 
@@ -45,9 +40,14 @@ if ngs_input == 'Azenta unique seqs':
         if file.endswith('Unique_AA.csv'):
             sample_name = file.split('_U')[0]
             unique_seqs_df = pd.read_csv(f"{unique_seqs_dir}/{file}")
-            matching_seqs_df = pd.merge(designed_seqs_df, unique_seqs_df, left_on='sequence', right_on='Unique Amino Acid', how='left')
-            matching_seqs_df = matching_seqs_df.drop('Unique Amino Acid', axis=1)
-            matching_seqs_df = matching_seqs_df.rename(columns={' Unique Amino Acid Count':'count'})
+
+            design_counts_dict = {}
+
+            for i, seq in enumerate(designed_seqs_df['aa_sequence']):
+                counts = unique_seqs_df[unique_seqs_df['Unique Amino Acid'].str.contains(seq, na=False)][' Unique Amino Acid Count'].sum()
+                design_counts_dict[designed_seqs_df.at[i, 'design']] = counts
+
+            matching_seqs_df = pd.DataFrame.from_dict(design_counts_dict, orient='index', columns=['count']).reset_index().rename(columns={'index':'design'})    
             matching_seqs_df = matching_seqs_df.fillna(0)
             matching_seqs_df.to_csv(f"{outdir}/{sample_name}_matching_seqs.csv")
             matching_seqs_df['sample_name'] = sample_name
@@ -58,42 +58,6 @@ if ngs_input == 'Azenta unique seqs':
     counts_df.to_csv(f"{outdir}/count_table.tsv", sep='\t')
 
 #####
-#start from fastq samples already separated into diff samples (Azenta fastq)
-#adapted from Hugh Haddox protease analysis scripts
-#alternatively look into flashpy: https://github.com/ponnhide/flashpy
-if ngs_input == 'Azenta fastq':
-     #pair forward and reverse reads
-    paired_FASTQ_files_dir = os.path.join(outdir, 'paired_FASTQ_files')
-    os.makedirs(paired_FASTQ_files_dir)
-
-    files = os.listdir(fastq_dir)
-
-    r1_files = []
-    for file in files:
-        if '_R1_' in file:
-            r1_files.append(file)
-
-    for r1_file in r1_files:
-        paired_filename = r1_files.split('_R1')[0]
-        r2_file = r1_file.replace('R1_', 'R2_')
-
-        outfile_prefix = os.path.join(paired_FASTQ_files_dir, f"{paired_filename}")
-        logfile = '{0}.log'.format(outfile_prefix)
-
-        cmd = [
-            pear_path,
-            '-f', r1_file,
-            '-r', r2_file,
-            '-o', outfile_prefix,
-            '-j', '20'
-        ]
-
-        log = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        out, err = log.communicate()
-        with open(logfile, 'wb') as f:
-            f.write(out)
-
-#parse fastq files for matching sequences and assemble counts table
 
 #####
 #add option to start from pooled sequencing data and parse by UMI 

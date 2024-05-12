@@ -10,12 +10,13 @@ import os
 #See: https://github.com/amphilli/CH65-comblib/tree/main/Kd_Inference
 
 ####USER DEFINED VARIBLES####
-counts_table_path = '/Users/stephaniecrilly/test/count_table.csv'
+counts_table_path = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240507_r1-hs_tite-seq_rep2_ngs/count_table.tsv'
 counts_table = pd.read_csv(counts_table_path, sep='\t')
 
-flow_table_path = '/Users/stephaniecrilly/test/flow_table.csv'
+flow_table_path = '/Users/stephaniecrilly/Kortemme_lab/helix_sliding/20240507_r1-hs_tite-seq_rep2_ngs/flow_table.csv'
 flow_table = pd.read_csv(flow_table_path)
 
+exp_id = 'r1-hs_tite-seq_rep2'
 outdir = '/Users/stephaniecrilly/Kortemme_lab/switch_seq'
 ####
 
@@ -23,12 +24,12 @@ outdir = '/Users/stephaniecrilly/Kortemme_lab/switch_seq'
 
 def extractKd(concentrations, bins_mean, bins_std):
     """
-        Arguments: concentrations and exponential mean bin numbers (bin number: 1, 2, 3, 4)
+        Arguments: -log10(concentrations) and exponential mean bin numbers (bin number: 1, 2, 3, 4)
         Return: -log10(Kd), and the r^2
     """
     popt, pcov = scipy.optimize.curve_fit(sigmoid, concentrations,
                                           bins_mean,
-                                          p0=[(-9), 10**(4), 10**(2)],
+                                          p0=[(-10), 10**(5), 10**(3)],
                                           sigma=bins_std, absolute_sigma=True,
                                           bounds=[(-12,
                                                    100,
@@ -56,7 +57,7 @@ def compute_Kds(sample_info, fluor, df):
     meanfluor, stdfluor = np.zeros((2, nb_bins, nb_concs))
     for gate, conc in zip(sample_info['bin'],
                                       sample_info['concentration']):
-        counts[gate-1, :, conc-1] = df[f"r1-hs-{conc}-{gate}"]
+        counts[gate-1, :, conc-1] = df[f"{conc}-{gate}"]
         cells[gate-1, conc-1] = sample_info[(sample_info.concentration == conc)
                                     & (sample_info.bin == gate)]["cell count"].iloc[0]
         meanfluor[gate-1, conc-1] = fluor[(fluor.concentration == conc)
@@ -108,7 +109,6 @@ fluor = (pd.read_csv(flow_table_path, sep=',', index_col=0)
          .replace([np.inf, -np.inf], np.nan)
          .dropna())
 sample_info = fluor[['sample_name', 'concentration', 'concentration_float', 'bin', 'cell count']]
-sample_info.concentration_float = -1*np.log10(sample_info.concentration_float*1e-12)
 fluor = fluor[['sample_name', 'concentration', 'bin', 'mean_log10_PEs', 'std_log10_PEs']]
 
 #compute Kds
@@ -124,4 +124,4 @@ counts_and_fits = counts_and_fits[['geno', 'Kds', 'As', 'Bs', 'errs', 'covs']]
 #convert Kds from -log10(Kd) to Kd
 counts_and_fits['Kds_M'] = 10**(-counts_and_fits['Kds'])
 
-counts_and_fits.to_csv(f'{outdir}/Kds.csv', index=False)
+counts_and_fits.to_csv(f'{outdir}/{exp_id}_Kds.csv', index=False)
