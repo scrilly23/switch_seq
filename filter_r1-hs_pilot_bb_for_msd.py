@@ -45,7 +45,7 @@ kds_rep2_df['Kds_norm_to_expected'] = ((kds_rep2_df['Kds'] - kds_rep2_df.loc[kds
 
 #bin normalized Kds
 bins = [-10, -1, lower_log_kd, upper_log_kd, 10]
-labels = ['lower Kd', 'intermediate lower Kd', 'expected Kd', 'higher Kd']
+labels = ['lower binding', 'intermediate lower binding', 'expected binding', 'higher binding']
 
 kds_rep1_df['Kds_norm_to_expected_binned'] = pd.cut(kds_rep1_df['Kds_norm_to_expected'], bins=bins, labels=labels)
 kds_rep2_df['Kds_norm_to_expected_binned'] = pd.cut(kds_rep2_df['Kds_norm_to_expected'], bins=bins, labels=labels)
@@ -59,8 +59,8 @@ all_merge_df = pd.merge(prot_stab_kds_df, exp_df, on='design', how='left')
 all_merge_df.to_csv(f"{outdir}/{exp_id}_all_merged.csv")
 
 #filter designs
-filtered_df = all_merge_df[(all_merge_df['Kds_norm_to_expected_binned_rep1'] == 'expected Kd') &
-                           (all_merge_df['Kds_norm_to_expected_binned_rep2'] == 'expected Kd') &
+filtered_df = all_merge_df[(all_merge_df['Kds_norm_to_expected_binned_rep1'] == 'expected binding') &
+                           (all_merge_df['Kds_norm_to_expected_binned_rep2'] == 'expected binding') &
                            (all_merge_df['stabilityscore'] < upper_ss) &
                            (all_merge_df['stabilityscore'] > lower_ss) &
                            (all_merge_df['As_rep1'] > A_min) &
